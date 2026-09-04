@@ -11,6 +11,8 @@ using Microsoft.Extensions.Logging;
 using WorkforceIntegrationGateway.Application.VerificationRequests;
 using WorkforceIntegrationGateway.Api.Contracts;
 using WorkforceIntegrationGateway.Domain.VerificationRequests;
+using WorkforceIntegrationGateway.Infrastructure.Persistence;
+using WorkforceIntegrationGateway.Infrastructure.VerificationRequests;
 
 namespace WorkforceIntegrationGateway.IntegrationTests.VerificationRequests;
 
@@ -489,6 +491,19 @@ public sealed class VerificationRequestApiTests
             "urn:wig:problem:validation",
             schemas.GetProperty("ValidationProblem").GetProperty("allOf")[1].GetProperty("properties")
                 .GetProperty("type").GetProperty("const").GetString());
+        Assert.Equal(
+            "#/components/responses/PersistenceUnavailableProblem",
+            post.GetProperty("responses").GetProperty("503").GetProperty("$ref").GetString());
+        var unavailable = root.GetProperty("components").GetProperty("responses")
+            .GetProperty("PersistenceUnavailableProblem").GetProperty("content")
+            .GetProperty("application/problem+json").GetProperty("schema").GetProperty("allOf")[1]
+            .GetProperty("properties");
+        Assert.Equal(
+            "urn:wig:problem:persistence-unavailable",
+            unavailable.GetProperty("type").GetProperty("const").GetString());
+        Assert.Equal(
+            "persistence_unavailable",
+            unavailable.GetProperty("code").GetProperty("const").GetString());
     }
 
     private static async Task<HttpResponseMessage> PostJsonAsync(
@@ -570,6 +585,16 @@ public sealed class VerificationRequestApiTests
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
+            builder.UseSetting(
+                "ConnectionStrings:WorkforceGateway",
+                "Host=localhost;Database=wig_contract;Username=wig_contract;Password=synthetic-not-used");
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IVerificationRequestRepository>();
+                services.RemoveAll<IDatabaseStartupValidator>();
+                services.AddSingleton<IVerificationRequestRepository, InMemoryVerificationRequestRepository>();
+                services.AddSingleton<IDatabaseStartupValidator, NoOpDatabaseStartupValidator>();
+            });
 
             if (configureServices is not null)
             {
@@ -585,6 +610,11 @@ public sealed class VerificationRequestApiTests
                 });
             }
         }
+    }
+
+    private sealed class NoOpDatabaseStartupValidator : IDatabaseStartupValidator
+    {
+        public Task ValidateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class RecordingLoggerProvider : ILoggerProvider

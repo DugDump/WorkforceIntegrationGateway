@@ -11,10 +11,9 @@ Security numbers.
 
 The repository currently provides a versioned local demonstration API for
 creating and retrieving synthetic verification requests in their initial
-`Pending` state. Storage is intentionally in memory for this increment, so an
-API restart loses created requests. PostgreSQL durability, provider integration,
-authentication, asynchronous processing, deployment, and production readiness
-are not implemented yet.
+`Pending` state. PostgreSQL stores accepted requests durably across API restarts.
+Provider integration, authentication, asynchronous processing, deployment, and
+production readiness are not implemented yet.
 
 ## Solution structure
 
@@ -39,6 +38,7 @@ and backlog material are intentionally excluded.
 ## Prerequisites
 
 - .NET SDK 10.0.400 or a compatible later 10.0 feature band selected by `global.json`.
+- Docker Desktop using Linux containers and Docker Compose v2.
 
 ## Restore, build, and test
 
@@ -54,10 +54,47 @@ dotnet run --project tests/WorkforceIntegrationGateway.IntegrationTests --no-bui
 
 The first restore after an intentional dependency update must omit
 `--locked-mode` so the committed lock files can be regenerated and reviewed.
-The integration suite uses an in-process ASP.NET Core test host at this stage;
-it does not claim PostgreSQL durability.
+The required integration suite starts the repository-pinned PostgreSQL image
+through Testcontainers. Docker unavailability fails the suite; it never skips or
+substitutes another provider.
 
-## Run the API foundation
+## Start and migrate the development database
+
+Copy `.env.example` to the ignored `.env`, replace the password placeholder,
+and choose a free host port if `5432` is already occupied. Then run:
+
+```powershell
+docker compose up -d --wait --wait-timeout 65 database
+dotnet tool restore
+$env:ConnectionStrings__WorkforceGateway = "Host=localhost;Port=5432;Database=wig_synthetic;Username=wig_synthetic;Password=<your-local-password>"
+dotnet tool run dotnet-ef database update --project src/WorkforceIntegrationGateway.Infrastructure
+```
+
+`database update` is repeatable and applies only unapplied committed migrations.
+The API validates configuration, connectivity, and schema currency at startup;
+it never applies migrations itself. A port collision requires changing
+`WIG_POSTGRES_PORT` and the connection string together. As an alternative to an
+environment variable, configure the same setting without committing it:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:WorkforceGateway" "Host=localhost;Port=5432;Database=wig_synthetic;Username=wig_synthetic;Password=<your-local-password>" --project src/WorkforceIntegrationGateway.Api
+```
+
+Stop the database while retaining its project-owned volume:
+
+```powershell
+docker compose down
+```
+
+If startup was interrupted, the same command removes only resources in this
+Compose project. Destructive reset (deletes only the project-owned database
+volume and all local demonstration data):
+
+```powershell
+docker compose down --volumes
+```
+
+## Run the API
 
 ```powershell
 dotnet run --project src/WorkforceIntegrationGateway.Api

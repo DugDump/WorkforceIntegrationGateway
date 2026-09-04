@@ -29,7 +29,13 @@ internal static class ProjectDependencyRules
         {
             ["WorkforceIntegrationGateway.Domain"] = new HashSet<string>(StringComparer.Ordinal),
             ["WorkforceIntegrationGateway.Application"] = new HashSet<string>(StringComparer.Ordinal),
-            ["WorkforceIntegrationGateway.Infrastructure"] = new HashSet<string>(StringComparer.Ordinal),
+            ["WorkforceIntegrationGateway.Infrastructure"] = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "Microsoft.EntityFrameworkCore",
+                "Microsoft.EntityFrameworkCore.Design",
+                "Npgsql.EntityFrameworkCore.PostgreSQL",
+                "Npgsql"
+            },
             ["WorkforceIntegrationGateway.Api"] = new HashSet<string>(StringComparer.Ordinal)
             {
                 "Microsoft.AspNetCore.OpenApi"

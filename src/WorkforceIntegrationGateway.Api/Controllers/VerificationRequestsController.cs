@@ -17,6 +17,7 @@ public sealed class VerificationRequestsController(
     [ProducesResponseType<ApiValidationProblem>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ApiProblem>(StatusCodes.Status415UnsupportedMediaType)]
     [ProducesResponseType<ApiProblem>(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType<ApiProblem>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Create(CancellationToken cancellationToken)
     {
         if (!HasApplicationJsonContentType(Request))
@@ -47,6 +48,7 @@ public sealed class VerificationRequestsController(
     [ProducesResponseType<VerificationRequestResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiValidationProblem>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ApiProblem>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiProblem>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Find(string id, CancellationToken cancellationToken)
     {
         if (id.Length != 36 || !Guid.TryParseExact(id, "D", out var parsedId))
