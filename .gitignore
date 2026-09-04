@@ -6,6 +6,10 @@
 # dotenv files
 .env
 
+# Private local engineering control plane
+/AGENTS.md
+/docs/
+
 # User-specific files
 *.rsuser
 *.suo
@@ -423,6 +427,7 @@ autom4te.cache/
 *.tar.gz
 tarballs/
 test-results/
+*-results.json
 
 # content below from: https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
 # General

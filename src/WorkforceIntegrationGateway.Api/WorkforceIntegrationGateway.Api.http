@@ -1,6 +1,0 @@
-@WorkforceIntegrationGateway.Api_HostAddress = http://localhost:5169
-
-GET {{WorkforceIntegrationGateway.Api_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

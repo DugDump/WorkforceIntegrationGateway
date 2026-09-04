@@ -1,0 +1,40 @@
+@baseUrl = http://localhost:5169
+
+### Create a synthetic verification request
+# Expected: 201 Created with a Location header and pending response body.
+POST {{baseUrl}}/api/v1/verification-requests
+Content-Type: application/json
+
+{
+  "clientReference": "client.synthetic-001",
+  "employeeReference": "employee.synthetic-001",
+  "employerReference": "employer.synthetic-001",
+  "requestedData": [
+    "EmploymentStatus",
+    "JobTitle",
+    "EmploymentDates"
+  ]
+}
+
+### Retrieve the created request
+# Replace the identifier below with the id returned by the create request.
+# Expected: 200 OK with the same representation returned by create.
+GET {{baseUrl}}/api/v1/verification-requests/11111111-2222-3333-4444-555555555555
+
+### Reject an invalid request
+# Expected: 400 Bad Request with an application/problem+json body.
+POST {{baseUrl}}/api/v1/verification-requests
+Content-Type: application/json
+
+{
+  "clientReference": "invalid reference with spaces",
+  "employeeReference": "employee.synthetic-002",
+  "employerReference": "employer.synthetic-002",
+  "requestedData": [
+    "EmploymentStatus"
+  ]
+}
+
+### Report an unknown, well-formed identifier
+# Expected: 404 Not Found with an application/problem+json body.
+GET {{baseUrl}}/api/v1/verification-requests/00000000-0000-0000-0000-000000000000

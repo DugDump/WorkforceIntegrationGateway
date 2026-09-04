@@ -1,0 +1,43 @@
+name: first-deliverable-ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Restore locked dependencies
+        run: dotnet restore WorkforceIntegrationGateway.sln --locked-mode
+
+      - name: Build exact candidate
+        run: dotnet build WorkforceIntegrationGateway.sln --no-restore --configuration Release
+
+      - name: Run unit tests
+        if: success() || failure()
+        run: dotnet run --project tests/WorkforceIntegrationGateway.UnitTests/WorkforceIntegrationGateway.UnitTests.csproj --no-build --configuration Release -- -failSkips -failWarns -result-ctrf unit-results.json
+
+      - name: Run architecture tests
+        if: success() || failure()
+        run: dotnet run --project tests/WorkforceIntegrationGateway.ArchitectureTests/WorkforceIntegrationGateway.ArchitectureTests.csproj --no-build --configuration Release -- -failSkips -failWarns -result-ctrf architecture-results.json
+
+      - name: Run PostgreSQL contract and acceptance tests
+        if: success() || failure()
+        run: dotnet run --project tests/WorkforceIntegrationGateway.IntegrationTests/WorkforceIntegrationGateway.IntegrationTests.csproj --no-build --configuration Release -- -failSkips -failWarns -result-ctrf integration-results.json
+
+      - name: Report and verify required test counts
+        if: always()
+        run: dotnet run --project tools/WorkforceIntegrationGateway.TestReport/WorkforceIntegrationGateway.TestReport.csproj --no-build --configuration Release -- unit-results.json architecture-results.json integration-results.json

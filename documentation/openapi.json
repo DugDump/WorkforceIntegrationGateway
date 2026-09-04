@@ -1,0 +1,233 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Workforce Integration Gateway API",
+    "version": "1.0.0",
+    "description": "Unauthenticated local demonstration API using synthetic references only."
+  },
+  "paths": {
+    "/api/v1/verification-requests": {
+      "post": {
+        "summary": "Create a verification request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateVerificationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Verification request created.",
+            "headers": {
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^/api/v1/verification-requests/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/VerificationRequest" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationProblem" },
+          "415": { "$ref": "#/components/responses/UnsupportedMediaTypeProblem" },
+          "500": { "$ref": "#/components/responses/UnexpectedProblem" },
+          "503": { "$ref": "#/components/responses/PersistenceUnavailableProblem" }
+        }
+      }
+    },
+    "/api/v1/verification-requests/{id}": {
+      "get": {
+        "summary": "Retrieve a verification request",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verification request found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/VerificationRequest" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationProblem" },
+          "404": { "$ref": "#/components/responses/NotFoundProblem" },
+          "500": { "$ref": "#/components/responses/UnexpectedProblem" },
+          "503": { "$ref": "#/components/responses/PersistenceUnavailableProblem" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateVerificationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["clientReference", "employeeReference", "employerReference", "requestedData"],
+        "properties": {
+          "clientReference": { "$ref": "#/components/schemas/SyntheticReference" },
+          "employeeReference": { "$ref": "#/components/schemas/SyntheticReference" },
+          "employerReference": { "$ref": "#/components/schemas/SyntheticReference" },
+          "requestedData": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": ["EmploymentStatus", "JobTitle", "EmploymentDates"]
+            }
+          }
+        }
+      },
+      "SyntheticReference": {
+        "type": "string",
+        "description": "Trimmed before validation and observation; the normalized value contains 1 through 100 accepted ASCII characters.",
+        "pattern": "^\\s*[A-Za-z0-9._-]{1,100}\\s*$"
+      },
+      "VerificationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "clientReference", "employeeReference", "employerReference", "requestedData", "status", "createdAtUtc"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "clientReference": { "type": "string" },
+          "employeeReference": { "type": "string" },
+          "employerReference": { "type": "string" },
+          "requestedData": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["employmentStatus", "jobTitle", "employmentDates"]
+            }
+          },
+          "status": { "type": "string", "const": "pending" },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$"
+          }
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "required": ["type", "title", "status", "code"],
+        "properties": {
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "code": { "type": "string" }
+        }
+      },
+      "ValidationProblem": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Problem" },
+          {
+            "type": "object",
+            "required": ["errors"],
+            "properties": {
+              "type": { "const": "urn:wig:problem:validation" },
+              "code": { "const": "validation_failed" },
+              "errors": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["field", "code", "message"],
+                  "properties": {
+                    "field": { "type": "string" },
+                    "code": {
+                      "type": "string",
+                      "enum": ["required", "length_out_of_range", "invalid_format", "at_least_one_required", "duplicate_value", "unsupported_value", "utc_required", "malformed_json", "invalid_json_shape", "unknown_property", "duplicate_property", "trailing_content"]
+                    },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "responses": {
+      "ValidationProblem": {
+        "description": "Request validation failed.",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/ValidationProblem" }
+          }
+        }
+      },
+      "UnsupportedMediaTypeProblem": {
+        "description": "Content type is absent or unsupported.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                { "$ref": "#/components/schemas/Problem" },
+                { "properties": { "type": { "const": "urn:wig:problem:unsupported-media-type" }, "code": { "const": "unsupported_media_type" } } }
+              ]
+            }
+          }
+        }
+      },
+      "NotFoundProblem": {
+        "description": "The well-formed identifier is unknown.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                { "$ref": "#/components/schemas/Problem" },
+                { "properties": { "type": { "const": "urn:wig:problem:verification-request-not-found" }, "code": { "const": "verification_request_not_found" } } }
+              ]
+            }
+          }
+        }
+      },
+      "UnexpectedProblem": {
+        "description": "An unexpected failure occurred.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                { "$ref": "#/components/schemas/Problem" },
+                { "properties": { "type": { "const": "urn:wig:problem:unexpected" }, "code": { "const": "unexpected_error" } } }
+              ]
+            }
+          }
+        }
+      },
+      "PersistenceUnavailableProblem": {
+        "description": "PostgreSQL became unavailable after successful startup.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                { "$ref": "#/components/schemas/Problem" },
+                { "properties": { "type": { "const": "urn:wig:problem:persistence-unavailable" }, "code": { "const": "persistence_unavailable" } } }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
