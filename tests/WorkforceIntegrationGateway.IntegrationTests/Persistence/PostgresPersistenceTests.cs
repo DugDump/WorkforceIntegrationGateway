@@ -1,8 +1,6 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -299,15 +297,6 @@ public sealed class PostgresPersistenceTests(PostgresFixture fixture)
     {
         var exception = await Assert.ThrowsAsync<PostgresException>(() => ExecuteAsync(connection, sql));
         Assert.Equal(state, exception.SqlState);
-    }
-
-    private sealed class PostgresApiFactory(string connectionString) : WebApplicationFactory<Program>
-    {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
-        {
-            builder.UseEnvironment("Development");
-            builder.UseSetting("ConnectionStrings:WorkforceGateway", connectionString);
-        }
     }
 
 }
