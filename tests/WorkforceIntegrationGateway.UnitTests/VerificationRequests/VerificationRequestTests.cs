@@ -45,8 +45,10 @@ public sealed class VerificationRequestTests
     [InlineData("clientReference")]
     [InlineData("employeeReference")]
     [InlineData("employerReference")]
-    public void Create_rejects_missing_or_whitespace_reference(string field)
+    public void Create_rejects_null_empty_or_whitespace_reference(string field)
     {
+        AssertError(CreateWithReference(field, null), field, "required");
+        AssertError(CreateWithReference(field, string.Empty), field, "required");
         AssertError(CreateWithReference(field, "   "), field, "required");
     }
 
@@ -73,6 +75,16 @@ public sealed class VerificationRequestTests
     public void Create_rejects_no_requested_data()
     {
         AssertError(Create(requestedData: []), "requestedData", "at_least_one_required");
+
+        var nullResult = VerificationRequest.Create(
+            Id,
+            "client.synthetic-001",
+            "employee.synthetic-001",
+            "employer.synthetic-001",
+            null,
+            CreatedAtUtc);
+
+        AssertError(nullResult, "requestedData", "at_least_one_required");
     }
 
     [Fact]
