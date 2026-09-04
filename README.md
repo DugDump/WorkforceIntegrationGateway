@@ -9,10 +9,11 @@ Security numbers.
 
 ## Current status
 
-The repository currently provides the buildable .NET 10 solution foundation.
-No verification-request API, database persistence, provider integration,
-authentication, asynchronous processing, deployment, or production-readiness
-claim is implemented yet.
+The repository currently provides the buildable .NET 10 solution foundation and
+the canonical model for a synthetic verification request in its initial
+`Pending` state. No verification-request API, database persistence, provider
+integration, authentication, asynchronous processing, deployment, or
+production-readiness claim is implemented yet.
 
 ## Solution structure
 
@@ -46,12 +47,14 @@ From the repository root:
 dotnet restore WorkforceIntegrationGateway.sln --locked-mode
 dotnet build WorkforceIntegrationGateway.sln --no-restore
 dotnet run --project tests/WorkforceIntegrationGateway.ArchitectureTests --no-build
+dotnet run --project tests/WorkforceIntegrationGateway.UnitTests --no-build
 ```
 
 The first restore after an intentional dependency update must omit
 `--locked-mode` so the committed lock files can be regenerated and reviewed.
-Unit and integration test executables are added as their governed behavior is
-implemented; empty test projects are not presented as successful evidence.
+The integration test executable is added to this gate when its governed
+integration behavior is implemented; an empty project is not presented as
+successful evidence.
 
 ## Run the API foundation
 
