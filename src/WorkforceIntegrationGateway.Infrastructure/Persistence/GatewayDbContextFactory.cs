@@ -8,7 +8,8 @@ public sealed class GatewayDbContextFactory : IDesignTimeDbContextFactory<Gatewa
     public GatewayDbContext CreateDbContext(string[] args)
     {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__WorkforceGateway")
-            ?? "Host=localhost;Database=wig_design;Username=wig_design;Password=not-used";
+            ?? throw new DatabaseStartupException(
+                "ConnectionStrings__WorkforceGateway is required when running dotnet-ef. Set it to the target PostgreSQL database before applying migrations.");
         var options = new DbContextOptionsBuilder<GatewayDbContext>()
             .UseNpgsql(connectionString)
             .Options;

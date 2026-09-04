@@ -163,6 +163,25 @@ public sealed class PostgresPersistenceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public void Ef_tooling_requires_explicit_target_database()
+    {
+        var original = Environment.GetEnvironmentVariable("ConnectionStrings__WorkforceGateway");
+
+        try
+        {
+            Environment.SetEnvironmentVariable("ConnectionStrings__WorkforceGateway", null);
+            var exception = Assert.Throws<DatabaseStartupException>(() =>
+                new GatewayDbContextFactory().CreateDbContext([]));
+            Assert.Contains("required", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Password", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("ConnectionStrings__WorkforceGateway", original);
+        }
+    }
+
+    [Fact]
     public async Task Pre_cancelled_write_remains_cancellation_and_persists_nothing()
     {
         var connectionString = await fixture.CreateDatabaseAsync();

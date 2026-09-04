@@ -73,8 +73,10 @@ dotnet tool run dotnet-ef database update --project src/WorkforceIntegrationGate
 `database update` is repeatable and applies only unapplied committed migrations.
 The API validates configuration, connectivity, and schema currency at startup;
 it never applies migrations itself. A port collision requires changing
-`WIG_POSTGRES_PORT` and the connection string together. As an alternative to an
-environment variable, configure the same setting without committing it:
+`WIG_POSTGRES_PORT` and the connection string together. The `dotnet-ef` command
+requires `ConnectionStrings__WorkforceGateway`; it never selects a fallback
+database. For API runtime only, user-secrets can hold the same setting without
+committing it:
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:WorkforceGateway" "Host=localhost;Port=5432;Database=wig_synthetic;Username=wig_synthetic;Password=<your-local-password>" --project src/WorkforceIntegrationGateway.Api
