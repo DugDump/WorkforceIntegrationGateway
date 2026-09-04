@@ -1,4 +1,6 @@
 using System.Xml.Linq;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 
 namespace WorkforceIntegrationGateway.ArchitectureTests;
 
@@ -22,6 +24,16 @@ public sealed class ProductionDependencyTests
         Assert.Empty(violations);
     }
 
+    [Theory]
+    [MemberData(nameof(ProductionProjects))]
+    public void Production_package_references_follow_declared_boundaries(string projectName)
+    {
+        var projectPath = Path.Combine(FindRepositoryRoot(), "src", projectName, $"{projectName}.csproj");
+        var violations = ProjectDependencyRules.FindPackageViolations(projectName, XDocument.Load(projectPath));
+
+        Assert.Empty(violations);
+    }
+
     [Fact]
     public void Prohibited_dependency_is_reported_with_an_understandable_message()
     {
@@ -40,6 +52,57 @@ public sealed class ProductionDependencyTests
         Assert.Equal(
             "WorkforceIntegrationGateway.Domain must not reference WorkforceIntegrationGateway.Infrastructure.",
             violation);
+    }
+
+    [Fact]
+    public void Prohibited_domain_package_is_reported_with_an_understandable_message()
+    {
+        var prohibitedProject = XDocument.Parse(
+            """
+            <Project>
+              <ItemGroup>
+                <PackageReference Include="Microsoft.EntityFrameworkCore" />
+              </ItemGroup>
+            </Project>
+            """);
+
+        var violation = Assert.Single(
+            ProjectDependencyRules.FindPackageViolations("WorkforceIntegrationGateway.Domain", prohibitedProject));
+
+        Assert.Equal(
+            "WorkforceIntegrationGateway.Domain must not reference package Microsoft.EntityFrameworkCore.",
+            violation);
+    }
+
+    [Fact]
+    public void Domain_compiled_assembly_has_no_forbidden_framework_dependencies()
+    {
+        var assemblyPath = Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "WorkforceIntegrationGateway.Domain",
+            "bin",
+            "Debug",
+            "net10.0",
+            "WorkforceIntegrationGateway.Domain.dll");
+        using var stream = File.OpenRead(assemblyPath);
+        using var peReader = new PEReader(stream);
+        var metadata = peReader.GetMetadataReader();
+        var references = metadata.AssemblyReferences
+            .Select(handle => metadata.GetString(metadata.GetAssemblyReference(handle).Name))
+            .ToArray();
+        var forbiddenPrefixes = new[]
+        {
+            "Azure.",
+            "Microsoft.AspNetCore.",
+            "Microsoft.EntityFrameworkCore",
+            "Npgsql",
+            "System.Net.Http"
+        };
+
+        Assert.DoesNotContain(
+            references,
+            reference => forbiddenPrefixes.Any(prefix => reference.StartsWith(prefix, StringComparison.Ordinal)));
     }
 
     private static string FindRepositoryRoot()

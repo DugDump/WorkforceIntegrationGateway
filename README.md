@@ -27,8 +27,8 @@ Api -> Infrastructure -> Application -> Domain
 - `WorkforceIntegrationGateway.Application` will own use cases and ports.
 - `WorkforceIntegrationGateway.Domain` will own canonical business concepts.
 - `WorkforceIntegrationGateway.Infrastructure` will implement external adapters.
-- `WorkforceIntegrationGateway.UnitTests` contains focused behavior tests.
-- `WorkforceIntegrationGateway.IntegrationTests` contains integration-boundary tests.
+- `WorkforceIntegrationGateway.UnitTests` is reserved for focused behavior tests.
+- `WorkforceIntegrationGateway.IntegrationTests` is reserved for integration-boundary tests.
 - `WorkforceIntegrationGateway.ArchitectureTests` enforces production project references.
 
 The public repository is independently buildable. Private engineering guidance
