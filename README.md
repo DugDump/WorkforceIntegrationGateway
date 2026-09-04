@@ -25,12 +25,13 @@ Api -> Infrastructure -> Application -> Domain
 ```
 
 - `WorkforceIntegrationGateway.Api` hosts ASP.NET Core and composes the service.
-- `WorkforceIntegrationGateway.Application` will own use cases and ports.
-- `WorkforceIntegrationGateway.Domain` will own canonical business concepts.
-- `WorkforceIntegrationGateway.Infrastructure` will implement external adapters.
-- `WorkforceIntegrationGateway.UnitTests` is reserved for focused behavior tests.
-- `WorkforceIntegrationGateway.IntegrationTests` is reserved for integration-boundary tests.
+- `WorkforceIntegrationGateway.Application` owns the verification-request use case and persistence port.
+- `WorkforceIntegrationGateway.Domain` owns the canonical request model and its invariants.
+- `WorkforceIntegrationGateway.Infrastructure` implements PostgreSQL persistence and identifier generation.
+- `WorkforceIntegrationGateway.UnitTests` verifies focused domain and application behavior.
+- `WorkforceIntegrationGateway.IntegrationTests` verifies the HTTP contract, PostgreSQL mapping, migrations, failures, and restart durability.
 - `WorkforceIntegrationGateway.ArchitectureTests` enforces production project references.
+- `WorkforceIntegrationGateway.TestReport` verifies that CI discovered and executed every required test without skips.
 
 The public repository is independently buildable. Private engineering guidance
 and backlog material are intentionally excluded.
@@ -111,3 +112,36 @@ Use [examples/verification-requests.http](examples/verification-requests.http)
 for synthetic requests. The accepted public contract is recorded in
 [documentation/openapi.json](documentation/openapi.json). The API is an
 unauthenticated local demonstration and must not receive real personal data.
+
+## Demonstrate the first deliverable
+
+Keep the database and API running, then execute the requests in
+`examples/verification-requests.http` in the following order:
+
+1. Run **Create a synthetic verification request**. Confirm the response is
+   `201 Created`, contains an application-assigned `id` and `"status":
+   "pending"`, and includes a `Location` response header.
+2. Copy the returned `id` into **Retrieve the created request** and run it.
+   Confirm the response is `200 OK` and its body corresponds to the created
+   request.
+3. Run **Reject an invalid request**. Confirm the response is `400 Bad Request`
+   with an `application/problem+json` body. Then verify that the invalid client
+   reference created no database row:
+
+   ```powershell
+   docker compose exec database psql --username wig_synthetic --dbname wig_synthetic --tuples-only --no-align --command "SELECT COUNT(*) FROM gateway.verification_requests WHERE client_reference = 'invalid reference with spaces';"
+   ```
+
+   The command must print `0`. If you changed `WIG_POSTGRES_USER` or
+   `WIG_POSTGRES_DB` from `.env.example`, use those values instead.
+4. Run **Report an unknown, well-formed identifier**. Confirm the response is
+   `404 Not Found` with an `application/problem+json` body.
+5. Stop the API with Ctrl+C, leaving the Compose database running. Start the
+   API again with the same `dotnet run` command and connection string.
+6. Run **Retrieve the created request** again with the original `id`. Confirm
+   it still returns `200 OK` with the same representation, demonstrating that
+   PostgreSQL preserved the resource across the API restart.
+
+The supplied HTTP file targets `http://localhost:5169`, the HTTP address in the
+checked-in launch profile. If the startup output reports a different address,
+change `baseUrl` in the HTTP file to that address before running the requests.
