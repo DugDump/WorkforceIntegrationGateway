@@ -9,11 +9,12 @@ Security numbers.
 
 ## Current status
 
-The repository currently provides the buildable .NET 10 solution foundation and
-the canonical model for a synthetic verification request in its initial
-`Pending` state. No verification-request API, database persistence, provider
-integration, authentication, asynchronous processing, deployment, or
-production-readiness claim is implemented yet.
+The repository currently provides a versioned local demonstration API for
+creating and retrieving synthetic verification requests in their initial
+`Pending` state. Storage is intentionally in memory for this increment, so an
+API restart loses created requests. PostgreSQL durability, provider integration,
+authentication, asynchronous processing, deployment, and production readiness
+are not implemented yet.
 
 ## Solution structure
 
@@ -48,13 +49,13 @@ dotnet restore WorkforceIntegrationGateway.sln --locked-mode
 dotnet build WorkforceIntegrationGateway.sln --no-restore
 dotnet run --project tests/WorkforceIntegrationGateway.ArchitectureTests --no-build
 dotnet run --project tests/WorkforceIntegrationGateway.UnitTests --no-build
+dotnet run --project tests/WorkforceIntegrationGateway.IntegrationTests --no-build
 ```
 
 The first restore after an intentional dependency update must omit
 `--locked-mode` so the committed lock files can be regenerated and reviewed.
-The integration test executable is added to this gate when its governed
-integration behavior is implemented; an empty project is not presented as
-successful evidence.
+The integration suite uses an in-process ASP.NET Core test host at this stage;
+it does not claim PostgreSQL durability.
 
 ## Run the API foundation
 
@@ -62,5 +63,12 @@ successful evidence.
 dotnet run --project src/WorkforceIntegrationGateway.Api
 ```
 
-The foundation starts an empty API host and exposes development OpenAPI metadata.
-Product endpoints arrive as separately reviewable increments.
+The API listens on the URL reported by ASP.NET Core. Its current routes are:
+
+- `POST /api/v1/verification-requests`
+- `GET /api/v1/verification-requests/{id}`
+
+Use [examples/verification-requests.http](examples/verification-requests.http)
+for synthetic requests. The accepted public contract is recorded in
+[documentation/openapi.yaml](documentation/openapi.yaml). The API is an
+unauthenticated local demonstration and must not receive real personal data.

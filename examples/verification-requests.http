@@ -1,0 +1,19 @@
+@baseUrl = http://localhost:5188
+
+### Create a synthetic verification request
+POST {{baseUrl}}/api/v1/verification-requests
+Content-Type: application/json
+
+{
+  "clientReference": "client.synthetic-001",
+  "employeeReference": "employee.synthetic-001",
+  "employerReference": "employer.synthetic-001",
+  "requestedData": [
+    "EmploymentStatus",
+    "JobTitle",
+    "EmploymentDates"
+  ]
+}
+
+### Retrieve a request (replace with the id from the create response)
+GET {{baseUrl}}/api/v1/verification-requests/11111111-2222-3333-4444-555555555555
