@@ -77,13 +77,17 @@ public sealed class ProductionDependencyTests
     [Fact]
     public void Domain_compiled_assembly_has_no_forbidden_framework_dependencies()
     {
+        var testOutput = new DirectoryInfo(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar));
+        var targetFramework = testOutput.Name;
+        var configuration = testOutput.Parent?.Name
+            ?? throw new DirectoryNotFoundException("Could not determine the active build configuration.");
         var assemblyPath = Path.Combine(
             FindRepositoryRoot(),
             "src",
             "WorkforceIntegrationGateway.Domain",
             "bin",
-            "Debug",
-            "net10.0",
+            configuration,
+            targetFramework,
             "WorkforceIntegrationGateway.Domain.dll");
         using var stream = File.OpenRead(assemblyPath);
         using var peReader = new PEReader(stream);
