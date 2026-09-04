@@ -10,7 +10,7 @@ services:
     ports:
       - "${WIG_POSTGRES_PORT:?Set WIG_POSTGRES_PORT in .env}:5432"
     volumes:
-      - workforce-gateway-postgres:/var/lib/postgresql/data
+      - workforce-gateway-postgres:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 2s
