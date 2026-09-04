@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "workforceintegrationgateway.application": {
+        "type": "Project",
+        "dependencies": {
+          "WorkforceIntegrationGateway.Domain": "[1.0.0, )"
+        }
+      },
+      "workforceintegrationgateway.domain": {
+        "type": "Project"
+      }
+    }
+  }
+}

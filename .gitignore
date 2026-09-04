@@ -6,6 +6,10 @@
 # dotenv files
 .env
 
+# Private local engineering control plane
+/AGENTS.md
+/docs/
+
 # User-specific files
 *.rsuser
 *.suo

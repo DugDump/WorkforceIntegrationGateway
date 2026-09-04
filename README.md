@@ -1,26 +1,63 @@
 # Workforce Integration Gateway
 
-A production-oriented ASP.NET Core reference application demonstrating secure
-REST API development, third-party system integration, JSON normalization,
-relational persistence, asynchronous processing, automated testing, and cloud
-deployment practices.
+Workforce Integration Gateway is a fictional ASP.NET Core reference service for
+demonstrating production-oriented .NET backend engineering. It will accept
+synthetic employment-verification requests and, in later increments, integrate
+with simulated payroll and HR providers. It has no affiliation with an employer
+or verification provider and must never contain real employee data or Social
+Security numbers.
 
-## Technology
+## Current status
 
-- C#
-- .NET 10
-- ASP.NET Core
-- Entity Framework Core
-- PostgreSQL
-- REST / JSON
-- Docker
-- GitHub Actions
-- Azure
+The repository currently provides the buildable .NET 10 solution foundation.
+No verification-request API, database persistence, provider integration,
+authentication, asynchronous processing, deployment, or production-readiness
+claim is implemented yet.
 
-## Project Status
+## Solution structure
 
-Initial engineering foundation.
+Production dependencies point inward:
 
-The project is intentionally developed incrementally so that its Git history,
-tests, architectural decisions, and implementation evolution can be reviewed
-as part of the portfolio.
+```text
+Api -> Application -> Domain
+Api -> Infrastructure -> Application -> Domain
+```
+
+- `WorkforceIntegrationGateway.Api` hosts ASP.NET Core and composes the service.
+- `WorkforceIntegrationGateway.Application` will own use cases and ports.
+- `WorkforceIntegrationGateway.Domain` will own canonical business concepts.
+- `WorkforceIntegrationGateway.Infrastructure` will implement external adapters.
+- `WorkforceIntegrationGateway.UnitTests` contains focused behavior tests.
+- `WorkforceIntegrationGateway.IntegrationTests` contains integration-boundary tests.
+- `WorkforceIntegrationGateway.ArchitectureTests` enforces production project references.
+
+The public repository is independently buildable. Private engineering guidance
+and backlog material are intentionally excluded.
+
+## Prerequisites
+
+- .NET SDK 10.0.400 or a compatible later 10.0 feature band selected by `global.json`.
+
+## Restore, build, and test
+
+From the repository root:
+
+```powershell
+dotnet restore WorkforceIntegrationGateway.sln --locked-mode
+dotnet build WorkforceIntegrationGateway.sln --no-restore
+dotnet run --project tests/WorkforceIntegrationGateway.ArchitectureTests --no-build
+```
+
+The first restore after an intentional dependency update must omit
+`--locked-mode` so the committed lock files can be regenerated and reviewed.
+Unit and integration test executables are added as their governed behavior is
+implemented; empty test projects are not presented as successful evidence.
+
+## Run the API foundation
+
+```powershell
+dotnet run --project src/WorkforceIntegrationGateway.Api
+```
+
+The foundation starts an empty API host and exposes development OpenAPI metadata.
+Product endpoints arrive as separately reviewable increments.
