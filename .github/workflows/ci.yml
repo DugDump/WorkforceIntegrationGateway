@@ -27,10 +27,17 @@ jobs:
         run: dotnet build WorkforceIntegrationGateway.sln --no-restore --configuration Release
 
       - name: Run unit tests
-        run: dotnet run --project tests/WorkforceIntegrationGateway.UnitTests/WorkforceIntegrationGateway.UnitTests.csproj --no-build --configuration Release -- -failSkips -failWarns
+        if: success() || failure()
+        run: dotnet run --project tests/WorkforceIntegrationGateway.UnitTests/WorkforceIntegrationGateway.UnitTests.csproj --no-build --configuration Release -- -failSkips -failWarns -result-ctrf unit-results.json
 
       - name: Run architecture tests
-        run: dotnet run --project tests/WorkforceIntegrationGateway.ArchitectureTests/WorkforceIntegrationGateway.ArchitectureTests.csproj --no-build --configuration Release -- -failSkips -failWarns
+        if: success() || failure()
+        run: dotnet run --project tests/WorkforceIntegrationGateway.ArchitectureTests/WorkforceIntegrationGateway.ArchitectureTests.csproj --no-build --configuration Release -- -failSkips -failWarns -result-ctrf architecture-results.json
 
       - name: Run PostgreSQL contract and acceptance tests
-        run: dotnet run --project tests/WorkforceIntegrationGateway.IntegrationTests/WorkforceIntegrationGateway.IntegrationTests.csproj --no-build --configuration Release -- -failSkips -failWarns
+        if: success() || failure()
+        run: dotnet run --project tests/WorkforceIntegrationGateway.IntegrationTests/WorkforceIntegrationGateway.IntegrationTests.csproj --no-build --configuration Release -- -failSkips -failWarns -result-ctrf integration-results.json
+
+      - name: Report and verify required test counts
+        if: always()
+        run: dotnet run --project tools/WorkforceIntegrationGateway.TestReport/WorkforceIntegrationGateway.TestReport.csproj --no-build --configuration Release -- unit-results.json architecture-results.json integration-results.json
