@@ -48,7 +48,7 @@ internal static class ProjectDependencyRules
 
         return project
             .Descendants("ProjectReference")
-            .Select(reference => Path.GetFileNameWithoutExtension(reference.Attribute("Include")?.Value))
+            .Select(reference => GetProjectName(reference.Attribute("Include")?.Value))
             .Where(reference => reference is not null && !allowed.Contains(reference))
             .Select(reference => $"{projectName} must not reference {reference}.")
             .ToArray();
@@ -65,4 +65,9 @@ internal static class ProjectDependencyRules
             .Select(package => $"{projectName} must not reference package {package}.")
             .ToArray();
     }
+
+    private static string? GetProjectName(string? include) =>
+        include is null
+            ? null
+            : Path.GetFileNameWithoutExtension(include.Replace('\\', '/'));
 }
