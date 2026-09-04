@@ -17,8 +17,7 @@ internal sealed class UnexpectedExceptionHandler(
         }
 
         logger.LogError(
-            exception,
-            "Unhandled verification request failure for trace {TraceIdentifier}.",
+            "Unexpected verification request failure for trace {TraceIdentifier}.",
             httpContext.TraceIdentifier);
         httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
         httpContext.Response.ContentType = "application/problem+json";

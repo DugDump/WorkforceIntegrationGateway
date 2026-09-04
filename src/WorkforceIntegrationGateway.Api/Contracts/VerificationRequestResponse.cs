@@ -1,3 +1,4 @@
+using System.Globalization;
 using WorkforceIntegrationGateway.Domain.VerificationRequests;
 using RequestedDataKind = WorkforceIntegrationGateway.Domain.VerificationRequests.RequestedData;
 
@@ -19,7 +20,7 @@ public sealed record VerificationRequestResponse(
         request.EmployerReference,
         request.RequestedData.Select(ToContractValue).ToArray(),
         "pending",
-        request.CreatedAtUtc.ToString("yyyy-MM-dd'T'HH:mm:ss.ffffff'Z'"));
+        request.CreatedAtUtc.ToString("yyyy-MM-dd'T'HH:mm:ss.ffffff'Z'", CultureInfo.InvariantCulture));
 
     private static string ToContractValue(RequestedDataKind requestedData) => requestedData switch
     {

@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -5,7 +7,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using WorkforceIntegrationGateway.Application.VerificationRequests;
+using WorkforceIntegrationGateway.Api.Contracts;
 using WorkforceIntegrationGateway.Domain.VerificationRequests;
 
 namespace WorkforceIntegrationGateway.IntegrationTests.VerificationRequests;
@@ -140,6 +144,24 @@ public sealed class VerificationRequestApiTests
         Assert.Contains("body:unknown_property", errors);
         var rawBody = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.DoesNotContain("<unknown>", rawBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Unsafe_duplicate_property_name_is_not_reflected_in_problem()
+    {
+        await using var factory = new TestApiFactory();
+        using var client = factory.CreateClient();
+        const string json = """
+            {"clientReference":"client.synthetic-001","employeeReference":"employee.synthetic-001","employerReference":"employer.synthetic-001","requestedData":["EmploymentStatus"],"<unsafe>":true,"<unsafe>":false}
+            """;
+
+        using var response = await PostJsonAsync(client, json, TestContext.Current.CancellationToken);
+        var errors = await ReadErrorsAsync(response);
+        var rawBody = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("body:unknown_property", errors);
+        Assert.Contains("body:duplicate_property", errors);
+        Assert.DoesNotContain("<unsafe>", rawBody, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -310,11 +332,12 @@ public sealed class VerificationRequestApiTests
     [Fact]
     public async Task Unexpected_repository_failure_returns_safe_unexpected_problem()
     {
+        using var logs = new RecordingLoggerProvider();
         await using var factory = new TestApiFactory(services =>
         {
             services.RemoveAll<IVerificationRequestRepository>();
             services.AddSingleton<IVerificationRequestRepository, ThrowingRepository>();
-        });
+        }, logs);
         using var client = factory.CreateClient();
 
         using var response = await PostJsonAsync(client, ValidJson(), TestContext.Current.CancellationToken);
@@ -328,6 +351,39 @@ public sealed class VerificationRequestApiTests
         Assert.DoesNotContain(nameof(ThrowingRepository), rawBody, StringComparison.Ordinal);
         Assert.DoesNotContain("synthetic", rawBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(" at ", rawBody, StringComparison.Ordinal);
+        var errorLogs = logs.Entries.Where(entry => entry.Level >= LogLevel.Error).ToArray();
+        Assert.NotEmpty(errorLogs);
+        Assert.All(errorLogs, entry => Assert.Null(entry.Exception));
+        Assert.DoesNotContain(errorLogs, entry => entry.Message.Contains(nameof(ThrowingRepository), StringComparison.Ordinal));
+        Assert.DoesNotContain(errorLogs, entry => entry.Message.Contains("synthetic", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(errorLogs, entry => entry.Message.Contains(":\\", StringComparison.Ordinal));
+        Assert.DoesNotContain(errorLogs, entry => entry.Message.Contains(" at ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Response_timestamp_is_invariant_under_non_gregorian_current_culture()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("th-TH");
+            var creation = VerificationRequest.Create(
+                Guid.Parse("11111111-2222-3333-4444-555555555555"),
+                "client.synthetic-001",
+                "employee.synthetic-001",
+                "employer.synthetic-001",
+                ["EmploymentStatus"],
+                new DateTimeOffset(2026, 9, 4, 12, 34, 56, 789, TimeSpan.Zero).AddTicks(1_230));
+
+            var response = VerificationRequestResponse.FromDomain(creation.Request!);
+
+            Assert.Equal("2026-09-04T12:34:56.789123Z", response.CreatedAtUtc);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Fact]
@@ -390,14 +446,49 @@ public sealed class VerificationRequestApiTests
     [Fact]
     public void Checked_in_openapi_records_the_accepted_contract_surface()
     {
-        var contractPath = Path.Combine(FindRepositoryRoot(), "documentation", "openapi.yaml");
-        var contract = File.ReadAllText(contractPath);
+        var contractPath = Path.Combine(FindRepositoryRoot(), "documentation", "openapi.json");
+        using var contract = JsonDocument.Parse(File.ReadAllText(contractPath));
+        var root = contract.RootElement;
+        var paths = root.GetProperty("paths");
+        var collection = paths.GetProperty(CollectionPath);
+        var resource = paths.GetProperty($"{CollectionPath}/{{id}}");
+        var schemas = root.GetProperty("components").GetProperty("schemas");
 
-        Assert.Contains("/api/v1/verification-requests:", contract, StringComparison.Ordinal);
-        Assert.Contains("/api/v1/verification-requests/{id}:", contract, StringComparison.Ordinal);
-        Assert.Contains("additionalProperties: false", contract, StringComparison.Ordinal);
-        Assert.Contains("enum: [EmploymentStatus, JobTitle, EmploymentDates]", contract, StringComparison.Ordinal);
-        Assert.Contains("application/problem+json", contract, StringComparison.Ordinal);
+        Assert.Equal("3.1.0", root.GetProperty("openapi").GetString());
+        Assert.True(collection.TryGetProperty("post", out var post));
+        Assert.True(resource.TryGetProperty("get", out _));
+        Assert.Equal(
+            "#/components/schemas/CreateVerificationRequest",
+            post.GetProperty("requestBody").GetProperty("content").GetProperty("application/json")
+                .GetProperty("schema").GetProperty("$ref").GetString());
+        Assert.Equal(
+            "^/api/v1/verification-requests/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            post.GetProperty("responses").GetProperty("201").GetProperty("headers").GetProperty("Location")
+                .GetProperty("schema").GetProperty("pattern").GetString());
+        Assert.False(schemas.GetProperty("CreateVerificationRequest").GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            "^\\s*[A-Za-z0-9._-]{1,100}\\s*$",
+            schemas.GetProperty("SyntheticReference").GetProperty("pattern").GetString());
+        Assert.Equal(
+            ["EmploymentStatus", "JobTitle", "EmploymentDates"],
+            schemas.GetProperty("CreateVerificationRequest").GetProperty("properties").GetProperty("requestedData")
+                .GetProperty("items").GetProperty("enum").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(
+            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            schemas.GetProperty("VerificationRequest").GetProperty("properties").GetProperty("id")
+                .GetProperty("pattern").GetString());
+        Assert.Equal(
+            "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+            schemas.GetProperty("VerificationRequest").GetProperty("properties").GetProperty("createdAtUtc")
+                .GetProperty("pattern").GetString());
+        Assert.Equal(
+            "pending",
+            schemas.GetProperty("VerificationRequest").GetProperty("properties").GetProperty("status")
+                .GetProperty("const").GetString());
+        Assert.Equal(
+            "urn:wig:problem:validation",
+            schemas.GetProperty("ValidationProblem").GetProperty("allOf")[1].GetProperty("properties")
+                .GetProperty("type").GetProperty("const").GetString());
     }
 
     private static async Task<HttpResponseMessage> PostJsonAsync(
@@ -471,7 +562,9 @@ public sealed class VerificationRequestApiTests
         Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("title").GetString()));
     }
 
-    private sealed class TestApiFactory(Action<IServiceCollection>? configureServices = null)
+    private sealed class TestApiFactory(
+        Action<IServiceCollection>? configureServices = null,
+        ILoggerProvider? loggerProvider = null)
         : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -482,8 +575,48 @@ public sealed class VerificationRequestApiTests
             {
                 builder.ConfigureServices(configureServices);
             }
+
+            if (loggerProvider is not null)
+            {
+                builder.ConfigureLogging(logging =>
+                {
+                    logging.ClearProviders();
+                    logging.AddProvider(loggerProvider);
+                });
+            }
         }
     }
+
+    private sealed class RecordingLoggerProvider : ILoggerProvider
+    {
+        private readonly ConcurrentQueue<CapturedLog> entries = new();
+
+        public IReadOnlyCollection<CapturedLog> Entries => entries.ToArray();
+
+        public ILogger CreateLogger(string categoryName) => new RecordingLogger(entries);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class RecordingLogger(ConcurrentQueue<CapturedLog> entries) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter) =>
+                entries.Enqueue(new(logLevel, formatter(state, exception), exception));
+        }
+    }
+
+    private sealed record CapturedLog(LogLevel Level, string Message, Exception? Exception);
 
     private sealed class ThrowingRepository : IVerificationRequestRepository
     {

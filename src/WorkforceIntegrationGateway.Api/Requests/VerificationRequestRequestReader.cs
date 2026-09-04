@@ -84,7 +84,7 @@ public sealed class VerificationRequestRequestReader
         {
             if (!seen.Add(property.Name))
             {
-                errors.Add(new(property.Name, "duplicate_property", "A JSON property is duplicated."));
+                errors.Add(new(SafeFieldIdentifier(property.Name), "duplicate_property", "A JSON property is duplicated."));
                 continue;
             }
 

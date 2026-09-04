@@ -70,5 +70,5 @@ The API listens on the URL reported by ASP.NET Core. Its current routes are:
 
 Use [examples/verification-requests.http](examples/verification-requests.http)
 for synthetic requests. The accepted public contract is recorded in
-[documentation/openapi.yaml](documentation/openapi.yaml). The API is an
+[documentation/openapi.json](documentation/openapi.json). The API is an
 unauthenticated local demonstration and must not receive real personal data.
